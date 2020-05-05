@@ -2,39 +2,11 @@
 # Alexander Kutschera 2020/04/21 #
 # alexander.kutschera@gmail.com  #
 #     §§  CC-BY-SA 4.0  §§       #
-         Version = 0.7          
 ##################################
 
-# Settings 
-file = "data/test1_xt.dat" # only required if read_folder is "FALSE", reads single file
-read_folder = TRUE # scans folder and analyses all files
-folder_path = "/Volumes/GNASTICK" # path to the folder which should be scanned
-filter_files = "_filteredpcameasurements.dat" # pattern in the files which should be analysed
-results_in_one_file = FALSE # does not work yet # TODO
-folder_input = "input"
-folder_results = "output_results" # write results into new folder
-folder_plots = "output_plots" # write plots into new folder
+# extractor.R functions
 
-thresh = 0.1  # set and change the thresh
-use_samplename = TRUE # use sample names to get info about the treatment
-remove_Cy5 = TRUE # remove the Cy5 channel
-move_all_file = TRUE
-move_to = "old_input"
-remove_old = TRUE
-plot_colors = c("#33a02c", "#e31a1c", "#1f78b4", "#b2df8a", "#ff7f00", "#fb9a99", "#fdbf6f", "#a6cee3")
 
-# libraries
-library(dplyr)
-library(lubridate)
-library(reshape)
-library(ggsci)
-library(gridExtra)
-library(grid)
-library(ggplot2)
-library(ggpubr)
-library(stringr)
-
-# functions
 read_dat_neo <- function(filename){
   status <- FALSE
   i = 1 # skip first 1 rows to save data
@@ -103,9 +75,9 @@ read_dat_neo <- function(filename){
 
 ms <- function(t){
   paste(formatC(t %/% 60 %% 60, width = 2, format = "d", flag = "0")
-               ,formatC(t %% 60, width = 2, format = "d", flag = "0")
-               ,sep = ":"
-        )
+        ,formatC(t %% 60, width = 2, format = "d", flag = "0")
+        ,sep = ":"
+  )
   
 }
 
@@ -171,7 +143,7 @@ create.plot <- function(data, results, filename, threshold, remove_Cy5){
     dot_data <- dot_data[!is.na(dot_data$ttt),] # remove samples which did not reach the treshold
     plot <- plot + geom_point(data = dot_data, aes(ttt, y = thresh), color = "grey", alpha = 0.7)
   }
-    
+  
   plot <- plot + geom_line(data = filtered_mdata, aes(x = `TIME [s]`, y = `Fluorescence [V]`, color = Sample) , size=0.5)
   
   return(plot)
@@ -201,16 +173,16 @@ write.pdf <- function(results, plot, filename, into_folder = FALSE, exclude_MIC_
   if (into_folder == FALSE) {
     pdf(gsub(".dat", ".pdf", filename), width = 21.0, height = 29.7, paper = "a4")
     
-    fig <- ggarrange(plot, ggtable, ncol = 1, nrow = 2, + font("x.text", size = 10))
+    fig <- ggarrange(plot, ggtable, ncol = 1, nrow = 2)
     
-    fig <- annotate_figure(fig,bottom = paste0("script version ", Version, ", Alexander Kutschera"))
+    fig <- annotate_figure(fig, right = fig,bottom = paste0("Script version ", Version, ", Alexander Kutschera"))
     print(fig)
     dev.off()
-    print(paste0("writing file to "), gsub(".dat", ".pdf", filename))
+    print(paste0("writing file to ", gsub(".dat", ".pdf", filename)))
   } else {
     dir.create(into_folder)
     pdf(paste0(into_folder, "/", gsub(".dat", ".pdf", filename)), width = 21.0, height =  29.7, paper = "a4")
-
+    
     fig <- ggarrange(plot, ggtable, ncol = 1, nrow = 2)
     
     fig <- annotate_figure(fig, right = fig,bottom = paste0("Script version ", Version, ", Alexander Kutschera"))
@@ -219,47 +191,3 @@ write.pdf <- function(results, plot, filename, into_folder = FALSE, exclude_MIC_
     print(paste0("writing file to ", into_folder, "/", gsub(".dat", ".pdf", filename)))
   }
 }
-
-# Script #############################
-
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-
-if (read_folder == TRUE) {
-  all_filenames <- list.files(paste0(folder_path, "/", folder_input), pattern = filter_files)
-  for (filename in all_filenames) {
-    print(paste0("analysing ", paste0(folder_path, "/", folder_input, "/", filename), " ..."))
-    data <- read_dat_neo(paste0(folder_path, "/", folder_input, "/", filename))
-    
-    results <- extract_info(data$no_temp, thresh, filename, use_samplename, remove_Cy5)
-    
-    plot <- create.plot(data, results, filename, thresh, remove_Cy5 = TRUE)
-    write.pdf(results, plot, filename, into_folder = paste0(folder_path, "/", folder_plots))
-    
-    if (results_in_one_file == TRUE) {
-      ## TODO
-    } else {
-      dir.create(paste0(folder_path, "/", folder_results))
-      write.csv2(results, paste0(folder_path, "/", folder_results, "/", gsub(".dat", ".csv", filename)))
-    }
-  }
-} else {
-  data <- read_dat_neo(file)
-  results <- extract_info(data$no_temp, thresh, file, use_samplename, remove_Cy5)
-  write.csv2(results, gsub(".dat", ".csv", file))
-  plot <- create.plot(data, results, file, thresh, remove_Cy5 = TRUE)
-  write.pdf(results, plot, file)
-}
-
-if (move_all_file == TRUE) {
-  print(paste0("removing files from ", folder_input, " ..."))
-  dir.create(paste0(folder_path, "/", move_to))
-  filenames <- list.files(paste0(folder_path, "/", folder_input))
-  for (filename in filenames) {
-    file.copy(paste0(folder_path, "/", folder_input, "/", filename), paste0(folder_path, "/", move_to))
-    if (remove_old == TRUE) {
-      file.remove(paste0(folder_path, "/", folder_input, "/", filename), paste0(folder_path, "/", move_to))
-    }
-  }
-}
-
-
